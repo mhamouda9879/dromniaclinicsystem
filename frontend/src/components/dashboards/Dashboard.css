@@ -1,0 +1,308 @@
+.dashboard {
+  width: 100%;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.primary-button {
+  padding: 10px 20px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.primary-button:hover {
+  background: #2980b9;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+  color: #666;
+}
+
+.walk-in-form {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.walk-in-form h3 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 5px;
+  color: #333;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.appointments-table {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.appointments-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.appointments-table thead {
+  background: #34495e;
+  color: white;
+}
+
+.appointments-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.appointments-table td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.appointments-table tr:hover {
+  background: #f8f9fa;
+}
+
+.appointments-table tr.emergency {
+  background: #fff3cd;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.small-button {
+  padding: 6px 12px;
+  background: #95a5a6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.3s;
+}
+
+.small-button:hover {
+  background: #7f8c8d;
+}
+
+.status-select {
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+}
+
+/* Doctor Dashboard */
+.doctor-dashboard {
+  height: calc(100vh - 150px);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 20px;
+  height: 100%;
+}
+
+.queue-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  overflow-y: auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.queue-panel h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}
+
+.queue-list {
+  margin-bottom: 20px;
+}
+
+.queue-item {
+  padding: 15px;
+  margin-bottom: 10px;
+  border: 2px solid #eee;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.queue-item:hover {
+  border-color: #3498db;
+  background: #f8f9fa;
+}
+
+.queue-item.active {
+  border-color: #3498db;
+  background: #e3f2fd;
+}
+
+.queue-item.emergency {
+  border-color: #e74c3c;
+  background: #fff3cd;
+}
+
+.queue-number {
+  font-size: 24px;
+  font-weight: bold;
+  color: #3498db;
+  min-width: 50px;
+  text-align: center;
+}
+
+.queue-info {
+  flex: 1;
+}
+
+.patient-name {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 4px;
+}
+
+.visit-type {
+  font-size: 12px;
+  color: #666;
+}
+
+.queue-status {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+}
+
+.consultation-panel {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  overflow-y: auto;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.consultation-panel h2 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+.patient-info-card {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.patient-info-card h3 {
+  margin-top: 0;
+  color: #2c3e50;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.visit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.no-consultation {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.no-consultation p {
+  margin: 10px 0;
+  font-size: 16px;
+}
+

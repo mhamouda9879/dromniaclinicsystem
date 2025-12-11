@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Overlay Issue</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+    }
+    .fix-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #3498db;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 10px 5px;
+      cursor: pointer;
+      border: none;
+      font-size: 16px;
+    }
+    .button:hover {
+      background: #2980b9;
+    }
+    .danger {
+      background: #e74c3c;
+    }
+    .danger:hover {
+      background: #c0392b;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="fix-container">
+    <h1>🔧 Fix Click Blocking Issue</h1>
+    
+    <h2>Quick Fix:</h2>
+    <p>Run these commands in your browser console (F12):</p>
+    <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto;">
+// Remove any blocking overlays
+document.querySelectorAll('*').forEach(el => {
+  const style = window.getComputedStyle(el);
+  if (style.position === 'fixed' && (style.zIndex > 1000 || style.background !== 'rgba(0, 0, 0, 0)')) {
+    console.log('Found potential overlay:', el);
+  }
+});
+
+// Force enable pointer events
+document.body.style.pointerEvents = 'auto';
+document.body.style.userSelect = 'auto';
+document.querySelector('#root').style.pointerEvents = 'auto';
+
+// Remove any invisible overlays
+const allElements = document.querySelectorAll('*');
+allElements.forEach(el => {
+  if (el.style.pointerEvents === 'none') {
+    el.style.pointerEvents = 'auto';
+  }
+});
+
+console.log('Fixed! Try clicking now.');
+    </pre>
+
+    <h2>Manual Steps:</h2>
+    <ol>
+      <li>Press <code>F12</code> or <code>Ctrl+Shift+I</code> (Windows) / <code>Cmd+Option+I</code> (Mac)</li>
+      <li>If DevTools doesn't open, try <code>Ctrl+Shift+J</code> (Windows) / <code>Cmd+Option+J</code> (Mac)</li>
+      <li>Go to Console tab</li>
+      <li>Paste the code above and press Enter</li>
+      <li>Try clicking again</li>
+    </ol>
+
+    <h2>Alternative: Clear Cache</h2>
+    <button class="button" onclick="clearCache()">Clear All Cache & Reload</button>
+    
+    <h2>Last Resort: Rebuild Frontend</h2>
+    <p>If nothing works, stop and restart the frontend:</p>
+    <pre style="background: #f4f4f4; padding: 15px; border-radius: 5px;">
+cd /Users/mohamedhamouda/obgyn-clinic-system/frontend
+# Stop current process (Ctrl+C)
+npm start
+    </pre>
+  </div>
+
+  <script>
+    function clearCache() {
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+      localStorage.clear();
+      sessionStorage.clear();
+      location.reload(true);
+    }
+
+    // Auto-fix on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.body.style.pointerEvents = 'auto';
+        document.querySelector('#root')?.style.setProperty('pointer-events', 'auto', 'important');
+      }, 100);
+    });
+  </script>
+</body>
+</html>
+
