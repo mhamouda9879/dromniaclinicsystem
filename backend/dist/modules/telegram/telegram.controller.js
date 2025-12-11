@@ -22,6 +22,13 @@ let TelegramController = class TelegramController {
     async handleWebhook(body) {
         try {
             const update = body;
+            if (process.env.NODE_ENV === 'development') {
+                console.log('📥 Webhook received:', {
+                    updateId: update.update_id,
+                    hasMessage: !!update.message,
+                    hasCallback: !!update.callback_query,
+                });
+            }
             if (update.message) {
                 const chatId = this.telegramService.extractChatId(update);
                 const messageText = this.telegramService.extractMessageText(update);
@@ -30,7 +37,7 @@ let TelegramController = class TelegramController {
                     this.telegramService
                         .handleIncomingMessage(chatId, messageText, username)
                         .catch((error) => {
-                        console.error('Error processing Telegram message:', error);
+                        console.error(`❌ Error processing message from ${chatId}:`, error);
                     });
                 }
             }
@@ -42,15 +49,15 @@ let TelegramController = class TelegramController {
                     this.telegramService
                         .handleIncomingMessage(chatId, callbackData, username)
                         .catch((error) => {
-                        console.error('Error processing Telegram callback:', error);
+                        console.error(`❌ Error processing callback from ${chatId}:`, error);
                     });
                 }
             }
             return { ok: true };
         }
         catch (error) {
-            console.error('Error handling Telegram webhook:', error);
-            return { ok: false, error: error.message };
+            console.error('❌ Error handling Telegram webhook:', error);
+            return { ok: true, error: error.message };
         }
     }
     async getWebhookInfo() {

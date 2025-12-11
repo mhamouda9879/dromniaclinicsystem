@@ -11,14 +11,18 @@ export declare class ConversationService {
     private readonly SESSION_TIMEOUT;
     constructor(patientsService: PatientsService, appointmentsService: AppointmentsService, notificationsService: NotificationsService, queueService: QueueService);
     processMessage(chatId: string, message: string, username?: string): Promise<string | null>;
+    private getLanguageSelection;
+    private handleLanguageSelection;
     private getMainMenu;
     private getOrCreateState;
     private cleanupExpiredSessions;
     private isMenuKeyword;
+    private isGreeting;
     private handleMenuSelection;
     private findPatientByChatId;
     private handleNameInput;
     private handleLMPInput;
+    private handlePostpartumDeliveryType;
     private handlePreviousPregnancy;
     private handlePregnancySymptoms;
     private handleLastDelivery;

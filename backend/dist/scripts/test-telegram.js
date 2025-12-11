@@ -4,9 +4,37 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = require("axios");
 const dotenv = require("dotenv");
 const path = require("path");
-dotenv.config({ path: path.join(__dirname, '../.env') });
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const fs = require("fs");
+const envPath = path.resolve(__dirname, '../.env');
+const altEnvPath = path.resolve(process.cwd(), '.env');
+let envFileUsed = null;
+if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    envFileUsed = envPath;
+}
+else if (fs.existsSync(altEnvPath)) {
+    dotenv.config({ path: altEnvPath });
+    envFileUsed = altEnvPath;
+}
+else {
+    dotenv.config();
+    envFileUsed = path.resolve(process.cwd(), '.env');
+}
+if (fs.existsSync(envFileUsed)) {
+    console.log(`📄 Loading .env from: ${envFileUsed}\n`);
+}
+else {
+    console.log(`⚠️  Warning: .env file not found. Tried:\n   - ${envPath}\n   - ${altEnvPath}\n`);
+}
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env['TELEGRAM_BOT_TOKEN'];
 const API_BASE = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : null;
+if (BOT_TOKEN) {
+    const maskedToken = BOT_TOKEN.substring(0, 10) + '...';
+    console.log(`✅ Token loaded: ${maskedToken}\n`);
+}
+else {
+    console.log(`❌ Token not found in environment variables\n`);
+}
 async function testTokenFormat() {
     if (!BOT_TOKEN) {
         return {

@@ -5,12 +5,14 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { QueueService } from '../queue/queue.service';
 import { VisitType, AppointmentStatus, AppointmentSource } from '../../entities/appointment.entity';
 import { format, addDays, parse, differenceInWeeks, addWeeks } from 'date-fns';
+import { Language, translate } from './languages';
 
 interface ConversationState {
   chatId: string; // Telegram chat ID as string
   step: string;
   data: Record<string, any>;
   lastActivity: Date;
+  language: Language; // User's preferred language
 }
 
 @Injectable()
@@ -36,15 +38,24 @@ export class ConversationService {
     const normalizedMessage = message.trim().toLowerCase();
     const state = this.getOrCreateState(chatId);
 
-    // Reset if user sends menu keywords
-    if (this.isMenuKeyword(normalizedMessage)) {
-      state.step = 'menu';
-      state.data = {};
-      return this.getMainMenu();
+    // Reset if user sends menu keywords or greetings (for first-time users)
+    if (this.isMenuKeyword(normalizedMessage) || this.isGreeting(normalizedMessage)) {
+      // If language is already set, go to menu. Otherwise, ask for language
+      if (state.language) {
+        state.step = 'menu';
+        state.data = {};
+        return this.getMainMenu(state.language);
+      } else {
+        state.step = 'select_language';
+        return this.getLanguageSelection();
+      }
     }
 
     // Handle different conversation steps
     switch (state.step) {
+      case 'select_language':
+        return await this.handleLanguageSelection(chatId, normalizedMessage, state);
+      
       case 'menu':
         return await this.handleMenuSelection(chatId, normalizedMessage, state);
       
@@ -96,41 +107,64 @@ export class ConversationService {
         return await this.handleBookingConfirmation(chatId, normalizedMessage, state);
       
       default:
-        state.step = 'menu';
-        return this.getMainMenu();
+        // If user sends something unexpected, show menu (if language is set)
+        if (state.language) {
+          state.step = 'menu';
+          return this.getMainMenu(state.language);
+        } else {
+          state.step = 'select_language';
+          return this.getLanguageSelection();
+        }
     }
   }
 
-  private getMainMenu(): string {
-    return `👋 *Welcome to OB/GYN Clinic!*
+  private getLanguageSelection(): string {
+    return translate('welcome', Language.ENGLISH) + '\n\n' + translate('selectLanguage', Language.ENGLISH);
+  }
 
-Please select an option by replying with the number:
+  private async handleLanguageSelection(
+    chatId: string,
+    message: string,
+    state: ConversationState,
+  ): Promise<string> {
+    const selection = message.trim();
+    
+    if (selection === '1' || selection.includes('english') || selection.includes('انجليزي')) {
+      state.language = Language.ENGLISH;
+      state.step = 'menu';
+      return this.getMainMenu(Language.ENGLISH);
+    } else if (selection === '2' || selection.includes('arabic') || selection.includes('عربي') || selection.includes('العربية')) {
+      state.language = Language.ARABIC;
+      state.step = 'menu';
+      return this.getMainMenu(Language.ARABIC);
+    } else {
+      // Invalid selection, ask again
+      return translate('welcome', Language.ENGLISH) + '\n\n' + translate('selectLanguage', Language.ENGLISH);
+    }
+  }
 
-1️⃣ Book Pregnancy Visit (First visit / Follow-up)
-2️⃣ Book Ultrasound (Pregnancy / Vaginal)
-3️⃣ Postpartum Follow-up
-4️⃣ Family Planning
-5️⃣ Infertility / Trying to Conceive
-6️⃣ General Gynecology Issues
-7️⃣ Pap Smear / Cervical Screening
-8️⃣ Emergency Case
-9️⃣ Modify / Cancel Appointment
-🔟 Check My Queue Number
-
-*Reply with a number (1-10)*`;
+  private getMainMenu(lang: Language): string {
+    return translate('menu', lang);
   }
 
   private getOrCreateState(chatId: string): ConversationState {
     if (!this.conversations.has(chatId)) {
       this.conversations.set(chatId, {
         chatId,
-        step: 'menu',
+        step: 'select_language', // Start with language selection
         data: {},
         lastActivity: new Date(),
+        language: Language.ENGLISH, // Default to English, but will ask user
       });
     }
     const state = this.conversations.get(chatId)!;
     state.lastActivity = new Date();
+    
+    // If no language is set, go to language selection
+    if (!state.language) {
+      state.step = 'select_language';
+    }
+    
     return state;
   }
 
@@ -144,8 +178,14 @@ Please select an option by replying with the number:
   }
 
   private isMenuKeyword(message: string): boolean {
-    const keywords = ['menu', 'start', 'begin', 'help', 'options', 'main'];
+    const keywords = ['menu', 'start', 'begin', 'help', 'options', 'main', '/start', '/menu'];
     return keywords.some((keyword) => message.includes(keyword));
+  }
+
+  private isGreeting(message: string): boolean {
+    // If user is at menu step and sends a greeting, show menu
+    const greetings = ['hi', 'hello', 'hey', 'hii', 'hi there', 'good morning', 'good afternoon', 'good evening', 'salam', 'السلام عليكم'];
+    return greetings.some((greeting) => message === greeting || message.startsWith(greeting + ' '));
   }
 
   private async handleMenuSelection(
@@ -154,64 +194,42 @@ Please select an option by replying with the number:
     state: ConversationState,
   ): Promise<string> {
     const selection = message.trim();
+    const lang = state.language || Language.ENGLISH;
 
     switch (selection) {
       case '1':
         state.step = 'pregnancy_first_visit_name';
-        return `📋 *Book Pregnancy Visit*
-
-Is this your first pregnancy visit or a follow-up?
-
-1️⃣ First visit
-2️⃣ Follow-up
-
-*Reply with 1 or 2*`;
+        return translate('bookPregnancyVisit', lang);
 
       case '2':
         state.step = 'ultrasound_name';
         state.data.visitType = VisitType.ULTRASOUND;
-        return `Please provide your full name:
-
-*Reply with your name*`;
+        return translate('provideFullName', lang);
 
       case '3':
         state.step = 'postpartum_name';
-        return `📋 *Postpartum Follow-up*
-
-What type of delivery did you have?
-
-1️⃣ Normal delivery
-2️⃣ C-section
-
-*Reply with 1 or 2*`;
+        // Will ask for delivery type in handleNameInput
+        return translate('provideFullName', lang);
 
       case '4':
         state.step = 'family_planning_name';
         state.data.visitType = VisitType.FAMILY_PLANNING;
-        return `Please provide your full name:
-
-*Reply with your name*`;
+        return translate('provideFullName', lang);
 
       case '5':
         state.step = 'infertility_name';
         state.data.visitType = VisitType.INFERTILITY;
-        return `Please provide your full name:
-
-*Reply with your name*`;
+        return translate('provideFullName', lang);
 
       case '6':
         state.step = 'general_gyne_name';
         state.data.visitType = VisitType.GENERAL_GYNE;
-        return `Please provide your full name:
-
-*Reply with your name*`;
+        return translate('provideFullName', lang);
 
       case '7':
         state.step = 'pap_smear_name';
         state.data.visitType = VisitType.PAP_SMEAR;
-        return `Please provide your full name:
-
-*Reply with your name*`;
+        return translate('provideFullName', lang);
 
       case '8':
         state.step = 'emergency_symptom';
@@ -240,7 +258,7 @@ For assistance, please contact: [Clinic Phone]`;
         // Check queue
         const patient = await this.findPatientByChatId(chatId);
         if (!patient) {
-          return `We couldn't find your information. Please book an appointment first.`;
+          return translate('patientNotFound', lang);
         }
         
         // Find today's appointment for this patient
@@ -254,9 +272,7 @@ For assistance, please contact: [Clinic Phone]`;
         );
         
         if (!todayAppointment) {
-          return `You don't have an appointment scheduled for today. 
-
-To book an appointment, please reply with the number from the main menu.`;
+          return translate('noAppointmentToday', lang);
         }
         
         // Get queue position
@@ -268,43 +284,60 @@ To book an appointment, please reply with the number from the main menu.`;
         let statusMessage = '';
         switch (todayAppointment.status) {
           case AppointmentStatus.WITH_DOCTOR:
-            statusMessage = '✅ You are currently with the doctor.';
+            statusMessage = lang === Language.ARABIC ? '✅ أنت حالياً مع الطبيب.' : '✅ You are currently with the doctor.';
             break;
           case AppointmentStatus.ARRIVED:
-            statusMessage = `🟢 You have arrived. Queue position: ${queuePosition || 'N/A'}`;
+            statusMessage = lang === Language.ARABIC 
+              ? `🟢 لقد وصلت. موقعك في الطابور: ${queuePosition || 'غير متوفر'}`
+              : `🟢 You have arrived. Queue position: ${queuePosition || 'N/A'}`;
             if (estimatedWaitTime !== null && queuePosition) {
-              statusMessage += `\n⏱️ Estimated wait time: ${estimatedWaitTime} minutes`;
+              statusMessage += lang === Language.ARABIC
+                ? `\n⏱️ وقت الانتظار المتوقع: ${estimatedWaitTime} دقيقة`
+                : `\n⏱️ Estimated wait time: ${estimatedWaitTime} minutes`;
             }
             break;
           case AppointmentStatus.CONFIRMED:
           case AppointmentStatus.BOOKED:
-            statusMessage = `📋 Your appointment is confirmed.\n`;
-            statusMessage += `⏰ Time: ${todayAppointment.appointmentTime}\n`;
-            statusMessage += `📝 Queue Number: ${todayAppointment.queueNumber || 'To be assigned'}`;
-            if (queuePosition) {
-              statusMessage += `\n📍 Current position in queue: ${queuePosition}`;
-              if (estimatedWaitTime !== null) {
-                statusMessage += `\n⏱️ Estimated wait time: ${estimatedWaitTime} minutes`;
+            if (lang === Language.ARABIC) {
+              statusMessage = `📋 تم تأكيد موعدك.\n`;
+              statusMessage += `⏰ الوقت: ${todayAppointment.appointmentTime}\n`;
+              statusMessage += `📝 رقم الدور: ${todayAppointment.queueNumber || 'سيتم تعيينه'}`;
+              if (queuePosition) {
+                statusMessage += `\n📍 موقعك الحالي في الطابور: ${queuePosition}`;
+                if (estimatedWaitTime !== null) {
+                  statusMessage += `\n⏱️ وقت الانتظار المتوقع: ${estimatedWaitTime} دقيقة`;
+                }
+              }
+            } else {
+              statusMessage = `📋 Your appointment is confirmed.\n`;
+              statusMessage += `⏰ Time: ${todayAppointment.appointmentTime}\n`;
+              statusMessage += `📝 Queue Number: ${todayAppointment.queueNumber || 'To be assigned'}`;
+              if (queuePosition) {
+                statusMessage += `\n📍 Current position in queue: ${queuePosition}`;
+                if (estimatedWaitTime !== null) {
+                  statusMessage += `\n⏱️ Estimated wait time: ${estimatedWaitTime} minutes`;
+                }
               }
             }
             break;
           default:
-            statusMessage = `Your appointment status: ${todayAppointment.status}`;
+            statusMessage = lang === Language.ARABIC 
+              ? `حالة موعدك: ${todayAppointment.status}`
+              : `Your appointment status: ${todayAppointment.status}`;
         }
         
-        return `📊 *Your Queue Status*
-
-${statusMessage}
-
-*Appointment Details:*
-📅 Date: ${format(new Date(todayAppointment.appointmentDate), 'dd/MM/yyyy')}
-🕐 Time: ${todayAppointment.appointmentTime}
-🏥 Type: ${todayAppointment.visitType}
-
-Reply *MENU* to return to main menu.`;
+        const visitTypeLabel = this.getVisitTypeDisplay(todayAppointment.visitType, lang);
+        const dateFormatted = format(new Date(todayAppointment.appointmentDate as any), 'dd/MM/yyyy');
+        
+        return translate('queueStatus', lang, 
+          statusMessage,
+          dateFormatted,
+          todayAppointment.appointmentTime,
+          visitTypeLabel
+        );
 
       default:
-        return `❌ Invalid option. Please reply with a number from 1-10.`;
+        return translate('invalidOption', lang);
     }
   }
 
@@ -323,6 +356,7 @@ Reply *MENU* to return to main menu.`;
     state: ConversationState,
     username?: string,
   ): Promise<string> {
+    const lang = state.language || Language.ENGLISH;
     state.data.fullName = message.trim();
     
     // Check if patient exists by Telegram chat ID
@@ -353,18 +387,16 @@ Reply *MENU* to return to main menu.`;
     // Continue based on visit type
     if (state.step === 'pregnancy_first_visit_name') {
       state.step = 'pregnancy_first_visit_lmp';
-      return `Please provide the date of your Last Menstrual Period (LMP).
-
-Format: DD/MM/YYYY (e.g., 15/11/2024)
-
-*Reply with the date*`;
+      return translate('provideLMP', lang);
     } else if (state.step === 'pregnancy_followup_name') {
       state.step = 'pregnancy_followup_lmp';
-      return `Please provide the date of your Last Menstrual Period (LMP).
-
-Format: DD/MM/YYYY (e.g., 15/11/2024)
-
-*Reply with the date*`;
+      return translate('provideLMP', lang);
+    } else if (state.step === 'postpartum_name') {
+      // For postpartum, ask delivery type after name
+      state.step = 'postpartum_delivery_type';
+      return lang === Language.ARABIC
+        ? `📋 *متابعة ما بعد الولادة*\n\nما نوع الولادة التي قمت بها؟\n\n1️⃣ ولادة طبيعية\n2️⃣ ولادة قيصرية\n\n*الرد بـ 1 أو 2*`
+        : `📋 *Postpartum Follow-up*\n\nWhat type of delivery did you have?\n\n1️⃣ Normal delivery\n2️⃣ C-section\n\n*Reply with 1 or 2*`;
     } else {
       // For other visit types, proceed to date selection
       state.step = 'select_date';
@@ -377,37 +409,46 @@ Format: DD/MM/YYYY (e.g., 15/11/2024)
     message: string,
     state: ConversationState,
   ): Promise<string> {
+    const lang = state.language || Language.ENGLISH;
     try {
       const lmpDate = parse(message.trim(), 'dd/MM/yyyy', new Date());
       if (isNaN(lmpDate.getTime())) {
-        return `❌ Invalid date format. Please use DD/MM/YYYY format (e.g., 15/11/2024)`;
+        return translate('invalidDate', lang);
       }
 
       state.data.lmpDate = format(lmpDate, 'yyyy-MM-dd');
 
       if (state.step === 'pregnancy_first_visit_lmp') {
         state.step = 'pregnancy_first_visit_previous';
-        return `Is this your first pregnancy?
-
-1️⃣ Yes, first pregnancy
-2️⃣ No, I've had previous pregnancies
-
-*Reply with 1 or 2*`;
+        return translate('firstPregnancy', lang);
       } else {
         state.step = 'pregnancy_followup_symptoms';
-        return `Do you have any current warning symptoms?
-
-1️⃣ No symptoms
-2️⃣ Bleeding
-3️⃣ Reduced fetal movements
-4️⃣ Severe pain
-5️⃣ Other symptoms
-
-*Reply with the number*`;
+        // Symptoms question - add to translations if needed, for now use simple text
+        return lang === Language.ARABIC
+          ? `هل لديك أي أعراض تحذيرية حالية؟\n\n1️⃣ لا أعراض\n2️⃣ نزيف\n3️⃣ قلة حركة الجنين\n4️⃣ ألم شديد\n5️⃣ أعراض أخرى\n\n*الرد برقم*`
+          : `Do you have any current warning symptoms?\n\n1️⃣ No symptoms\n2️⃣ Bleeding\n3️⃣ Reduced fetal movements\n4️⃣ Severe pain\n5️⃣ Other symptoms\n\n*Reply with the number*`;
       }
     } catch (error) {
-      return `❌ Invalid date format. Please use DD/MM/YYYY format (e.g., 15/11/2024)`;
+      return translate('invalidDate', lang);
     }
+  }
+
+  private async handlePostpartumDeliveryType(
+    chatId: string,
+    message: string,
+    state: ConversationState,
+  ): Promise<string> {
+    const lang = state.language || Language.ENGLISH;
+    const selection = message.trim();
+    
+    if (selection === '1' || selection.includes('normal')) {
+      state.data.visitType = VisitType.POSTPARTUM_NORMAL;
+    } else if (selection === '2' || selection.includes('c-section') || selection.includes('csection') || selection.includes('caesarean')) {
+      state.data.visitType = VisitType.POSTPARTUM_CSECTION;
+    }
+    
+    state.step = 'select_date';
+    return await this.handleDateSelection(chatId, '', state);
   }
 
   private async handlePreviousPregnancy(
@@ -559,25 +600,29 @@ Your case has been marked as urgent. Please come to the clinic immediately and i
     message: string,
     state: ConversationState,
   ): Promise<string> {
+    const lang = state.language || Language.ENGLISH;
+    
     if (message && message.trim()) {
       // User provided a date
       try {
         const selectedDate = parse(message.trim(), 'dd/MM/yyyy', new Date());
         if (isNaN(selectedDate.getTime())) {
-          return `❌ Invalid date format. Please use DD/MM/YYYY`;
+          return translate('invalidDate', lang);
         }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (selectedDate < today) {
-          return `❌ Cannot book appointments in the past. Please select a future date.`;
+          return lang === Language.ARABIC
+            ? '❌ لا يمكن حجز مواعيد في الماضي. الرجاء اختيار تاريخ في المستقبل.'
+            : '❌ Cannot book appointments in the past. Please select a future date.';
         }
 
         state.data.appointmentDate = format(selectedDate, 'yyyy-MM-dd');
         state.step = 'select_time';
         return await this.handleTimeSelection(chatId, '', state);
       } catch (error) {
-        return `❌ Invalid date format. Please use DD/MM/YYYY (e.g., 15/12/2024)`;
+        return translate('invalidDate', lang);
       }
     }
 
@@ -587,11 +632,7 @@ Your case has been marked as urgent. Please come to the clinic immediately and i
       return `${index + 1}️⃣ ${format(date, 'dd/MM/yyyy (EEEE)')}`;
     }).join('\n');
 
-    return `📅 *Select Appointment Date:*
-
-${dateOptions}
-
-*Reply with the number or type the date in DD/MM/YYYY format*`;
+    return translate('selectDate', lang, dateOptions);
   }
 
   private async handleTimeSelection(
@@ -599,6 +640,8 @@ ${dateOptions}
     message: string,
     state: ConversationState,
   ): Promise<string> {
+    const lang = state.language || Language.ENGLISH;
+    
     if (!state.data.appointmentDate) {
       state.step = 'select_date';
       return await this.handleDateSelection(chatId, '', state);
@@ -616,7 +659,9 @@ ${dateOptions}
       if (index >= 0 && index < slots.length) {
         selectedTime = slots[index];
       } else {
-        return `❌ Invalid selection. Please choose a number from the list.`;
+        return lang === Language.ARABIC
+          ? '❌ اختيار غير صحيح. الرجاء اختيار رقم من القائمة.'
+          : '❌ Invalid selection. Please choose a number from the list.';
       }
     } else if (message.trim()) {
       // Try parsing as time
@@ -624,7 +669,9 @@ ${dateOptions}
       if (timeMatch) {
         selectedTime = timeMatch.padStart(5, '0');
       } else {
-        return `❌ Invalid time format. Please provide time in HH:MM format or select a number.`;
+        return lang === Language.ARABIC
+          ? '❌ تنسيق وقت غير صحيح. الرجاء إدخال الوقت بتنسيق س:د (مثال: 09:00) أو اختيار رقم.'
+          : '❌ Invalid time format. Please provide time in HH:MM format or select a number.';
       }
     } else {
       // Show available slots
@@ -633,18 +680,14 @@ ${dateOptions}
       );
 
       if (slots.length === 0) {
-        return `❌ No available time slots for this date. Please select another date.`;
+        return translate('noTimeSlots', lang);
       }
 
       const timeOptions = slots.slice(0, 10).map((slot, index) => {
         return `${index + 1}️⃣ ${slot}`;
       }).join('\n');
 
-      return `⏰ *Select Time Slot:*
-
-${timeOptions}
-
-*Reply with the number or time (e.g., "09:00")*`;
+      return translate('selectTime', lang, timeOptions);
     }
 
     state.data.appointmentTime = selectedTime;
@@ -655,17 +698,8 @@ ${timeOptions}
       'dd/MM/yyyy (EEEE)',
     );
 
-    return `✅ *Appointment Summary:*
-
-📋 Visit Type: ${this.getVisitTypeDisplay(state.data.visitType || VisitType.GENERAL_GYNE)}
-📅 Date: ${dateFormatted}
-⏰ Time: ${selectedTime}
-
-*Confirm your appointment?*
-1️⃣ Yes, confirm
-2️⃣ No, cancel
-
-*Reply with 1 or 2*`;
+    const visitTypeLabel = this.getVisitTypeDisplay(state.data.visitType || VisitType.GENERAL_GYNE, lang);
+    return translate('appointmentSummary', lang, visitTypeLabel, dateFormatted, selectedTime);
   }
 
   private async handleBookingConfirmation(
@@ -673,15 +707,19 @@ ${timeOptions}
     message: string,
     state: ConversationState,
   ): Promise<string> {
-    if (!message.includes('1') && !message.includes('yes') && !message.includes('confirm')) {
+    const lang = state.language || Language.ENGLISH;
+    
+    if (!message.includes('1') && !message.includes('yes') && !message.includes('confirm') && !message.includes('نعم')) {
       this.conversations.delete(chatId);
-      return `Booking cancelled. You can start a new booking anytime by sending any message.`;
+      return translate('bookingCancelled', lang);
     }
 
     // Get or create patient
     let patient = await this.findPatientByChatId(chatId);
     if (!patient && !state.data.patientId) {
-      return `❌ Patient information missing. Please start over.`;
+      return lang === Language.ARABIC
+        ? '❌ معلومات المريض مفقودة. الرجاء البدء من جديد.'
+        : '❌ Patient information missing. Please start over.';
     }
 
     if (!patient) {
@@ -711,34 +749,30 @@ ${timeOptions}
       'dd/MM/yyyy',
     );
 
-    return `✅ *APPOINTMENT CONFIRMED!*
-
-📋 Visit: ${this.getVisitTypeDisplay(appointment.visitType)}
-📅 Date: ${dateFormatted}
-⏰ Time: ${appointment.appointmentTime}
-🔢 Queue Number: #${appointment.queueNumber}
-
-*Please arrive 10-15 minutes before your appointment time.*
-
-Thank you for choosing our clinic! We look forward to seeing you.
-
-Reply *MENU* to return to main menu.`;
+    const visitTypeLabel = this.getVisitTypeDisplay(appointment.visitType, lang);
+    return translate('appointmentConfirmed', lang, 
+      visitTypeLabel,
+      dateFormatted,
+      appointment.appointmentTime,
+      appointment.queueNumber?.toString() || 'TBD'
+    );
   }
 
-  private getVisitTypeDisplay(visitType: VisitType | string): string {
-    const labels: Record<string, string> = {
-      [VisitType.PREGNANCY_FIRST_VISIT]: 'Pregnancy First Visit',
-      [VisitType.PREGNANCY_FOLLOWUP]: 'Pregnancy Follow-up',
-      [VisitType.ULTRASOUND]: 'Ultrasound',
-      [VisitType.POSTPARTUM_NORMAL]: 'Postpartum Follow-up (Normal)',
-      [VisitType.POSTPARTUM_CSECTION]: 'Postpartum Follow-up (C-section)',
-      [VisitType.FAMILY_PLANNING]: 'Family Planning',
-      [VisitType.INFERTILITY]: 'Infertility Consultation',
-      [VisitType.GENERAL_GYNE]: 'General Gynecology',
-      [VisitType.PAP_SMEAR]: 'Pap Smear',
-      [VisitType.EMERGENCY]: 'Emergency Visit',
+  private getVisitTypeDisplay(visitType: VisitType | string, lang: Language = Language.ENGLISH): string {
+    const keyMap: Record<string, string> = {
+      [VisitType.PREGNANCY_FIRST_VISIT]: 'visitTypePregnancyFirst',
+      [VisitType.PREGNANCY_FOLLOWUP]: 'visitTypePregnancyFollowup',
+      [VisitType.ULTRASOUND]: 'visitTypeUltrasound',
+      [VisitType.POSTPARTUM_NORMAL]: 'visitTypePostpartumNormal',
+      [VisitType.POSTPARTUM_CSECTION]: 'visitTypePostpartumCsection',
+      [VisitType.FAMILY_PLANNING]: 'visitTypeFamilyPlanning',
+      [VisitType.INFERTILITY]: 'visitTypeInfertility',
+      [VisitType.GENERAL_GYNE]: 'visitTypeGeneralGyne',
+      [VisitType.PAP_SMEAR]: 'visitTypePapSmear',
+      [VisitType.EMERGENCY]: 'visitTypeEmergency',
     };
-    return labels[visitType] || visitType;
+    const key = keyMap[visitType];
+    return key ? translate(key, lang) : visitType;
   }
 
   private buildAppointmentNotes(state: ConversationState): string {

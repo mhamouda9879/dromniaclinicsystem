@@ -19,6 +19,15 @@ export class TelegramController {
       // Telegram sends updates in this format
       const update = body;
 
+      // Log webhook receipt for debugging (in production, use proper logging)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📥 Webhook received:', {
+          updateId: update.update_id,
+          hasMessage: !!update.message,
+          hasCallback: !!update.callback_query,
+        });
+      }
+
       // Handle different update types
       if (update.message) {
         const chatId = this.telegramService.extractChatId(update);
@@ -27,10 +36,12 @@ export class TelegramController {
 
         if (chatId && messageText) {
           // Process the message asynchronously (don't wait for response)
+          // This is important - Telegram requires quick response
           this.telegramService
             .handleIncomingMessage(chatId, messageText, username)
             .catch((error) => {
-              console.error('Error processing Telegram message:', error);
+              console.error(`❌ Error processing message from ${chatId}:`, error);
+              // In production, you might want to log to a service like Sentry
             });
         }
       } else if (update.callback_query) {
@@ -43,7 +54,7 @@ export class TelegramController {
           this.telegramService
             .handleIncomingMessage(chatId, callbackData, username)
             .catch((error) => {
-              console.error('Error processing Telegram callback:', error);
+              console.error(`❌ Error processing callback from ${chatId}:`, error);
             });
         }
 
@@ -51,10 +62,13 @@ export class TelegramController {
         // This is done asynchronously, don't wait
       }
 
+      // Always return success immediately (Telegram requirement)
       return { ok: true };
     } catch (error) {
-      console.error('Error handling Telegram webhook:', error);
-      return { ok: false, error: error.message };
+      console.error('❌ Error handling Telegram webhook:', error);
+      // Still return ok: true to prevent Telegram from retrying immediately
+      // But log the error for investigation
+      return { ok: true, error: error.message };
     }
   }
 

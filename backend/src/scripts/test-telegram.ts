@@ -9,12 +9,43 @@
 import axios from 'axios';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import * as fs from 'fs';
 
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '../.env') });
+// Determine correct path to .env file
+const envPath = path.resolve(__dirname, '../.env');
+const altEnvPath = path.resolve(process.cwd(), '.env');
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+// Try to load .env file
+let envFileUsed = null;
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+  envFileUsed = envPath;
+} else if (fs.existsSync(altEnvPath)) {
+  dotenv.config({ path: altEnvPath });
+  envFileUsed = altEnvPath;
+} else {
+  // Try current working directory
+  dotenv.config();
+  envFileUsed = path.resolve(process.cwd(), '.env');
+}
+
+// Debug: Show which env file is being used
+if (fs.existsSync(envFileUsed)) {
+  console.log(`📄 Loading .env from: ${envFileUsed}\n`);
+} else {
+  console.log(`⚠️  Warning: .env file not found. Tried:\n   - ${envPath}\n   - ${altEnvPath}\n`);
+}
+
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env['TELEGRAM_BOT_TOKEN'];
 const API_BASE = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : null;
+
+// Debug: Show if token was loaded (without showing the actual token)
+if (BOT_TOKEN) {
+  const maskedToken = BOT_TOKEN.substring(0, 10) + '...';
+  console.log(`✅ Token loaded: ${maskedToken}\n`);
+} else {
+  console.log(`❌ Token not found in environment variables\n`);
+}
 
 interface TestResult {
   name: string;

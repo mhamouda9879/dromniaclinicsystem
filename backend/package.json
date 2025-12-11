@@ -22,7 +22,10 @@
     "migration:run": "typeorm migration:run -d src/config/typeorm.config.ts",
     "migration:revert": "typeorm migration:revert -d src/config/typeorm.config.ts",
     "seed:users": "ts-node -r tsconfig-paths/register src/scripts/seed-users.ts",
-    "test:telegram": "ts-node -r tsconfig-paths/register src/scripts/test-telegram.ts"
+    "test:telegram": "ts-node -r tsconfig-paths/register src/scripts/test-telegram.ts",
+    "send:welcome": "ts-node -r tsconfig-paths/register src/scripts/send-welcome.ts",
+    "setup:webhook": "ts-node -r tsconfig-paths/register src/scripts/setup-webhook-production.ts",
+    "check:webhook": "ts-node -r tsconfig-paths/register src/scripts/check-webhook.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

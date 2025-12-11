@@ -1,0 +1,50 @@
+# Files to exclude from deployment
+
+# Development files
+.git/
+.gitignore
+*.md
+!DEPLOYMENT_FILES.md
+
+# Environment files (deploy separately)
+.env.example
+.env.local
+.env.development
+
+# Dependencies (reinstall on server)
+node_modules/
+package-lock.json
+
+# Source files (only deploy dist/build)
+src/
+backend/src/
+frontend/src/
+
+# Build artifacts (will be rebuilt)
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+test/
+tests/
+*.spec.ts
+*.test.ts
+__tests__/
+coverage/
+
+# Documentation
+docs/
+*.md
+!DEPLOYMENT*.md
+
+# Scripts (optional)
+scripts/
+deploy-*.sh
+
