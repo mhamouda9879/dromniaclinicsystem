@@ -1,0 +1,35 @@
+import { PatientsService } from '../patients/patients.service';
+import { AppointmentsService } from '../appointments/appointments.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { QueueService } from '../queue/queue.service';
+export declare class ConversationService {
+    private patientsService;
+    private appointmentsService;
+    private notificationsService;
+    private queueService;
+    private conversations;
+    private readonly SESSION_TIMEOUT;
+    constructor(patientsService: PatientsService, appointmentsService: AppointmentsService, notificationsService: NotificationsService, queueService: QueueService);
+    processMessage(chatId: string, message: string, username?: string): Promise<string | null>;
+    private getMainMenu;
+    private getOrCreateState;
+    private cleanupExpiredSessions;
+    private isMenuKeyword;
+    private handleMenuSelection;
+    private findPatientByChatId;
+    private handleNameInput;
+    private handleLMPInput;
+    private handlePreviousPregnancy;
+    private handlePregnancySymptoms;
+    private handleLastDelivery;
+    private handleBreastfeeding;
+    private handleInfertilityDuration;
+    private handleEmergencySymptom;
+    private handleEmergencyWhen;
+    private handleEmergencyPregnant;
+    private handleDateSelection;
+    private handleTimeSelection;
+    private handleBookingConfirmation;
+    private getVisitTypeDisplay;
+    private buildAppointmentNotes;
+}
